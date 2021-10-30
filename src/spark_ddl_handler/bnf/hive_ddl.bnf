@@ -1,0 +1,169 @@
+// Source: https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl
+
+start: overall_expr -> final
+
+overall_expr: sql_code
+
+sql_code: (create_statement | id_statement) (";" (create_statement id_statement))*
+
+id_statement: FAKER_PROVIDER ":" full_column_name ("," full_column_name)*
+
+full_column_name: (name ".")? name "." name
+
+create_statement: "CREATE"i ("TEMPORARY"i)? ("EXTERNAL"i)? "TABLE"i ("IF"i "NOT"i "EXISTS"i)? (db_name ".")? table_name columns row_format_statement? stored? tbl_properties? options?
+
+columns: "(" column ("," column)* [constraint_specification] ")"
+
+column: col_name data_type [column_constraint_specification] ["COMMENT"i col_comment]
+
+partitioned: "PARTITIONED"i "BY"i "(" col_name data_type ["COMMENT"i col_comment] ("," col_name data_type ["COMMENT"i col_comment])* ")"
+
+clustered: "CLUSTERED"i "BY"i "(" col_name ("," col_name)* ")" ["SORTED"i "BY"i "(" col_name ["ASC"i "DESC"i] ("," col_name ["ASC"i "DESC"i])* ")"] "INTO"i numeric_literal "BUCKETS"i
+
+skewed: "SKEWED"i "BY"i "(" col_name ("," col_name)* ")" "ON"i "(" skewed_col_list ("," skewed_col_list)* ")" ["STORED"i "AS"i "DIRECTORIES"i]
+
+skewed_col_list: "(" col_value ("," col_value)* ")"
+
+row_format_statement: "ROW"i "FORMAT"i row_format
+
+stored: "STORED"i "AS"i file_format
+      | "STORED"i "BY"i "'" class_name "'" ("WITH"i "SERDEPROPERTIES"i "(" "'" name "'" "=" "'" literal "'" ("," "'" name "'" "=" "'" literal "'")* ")" )?
+      | "USING"i file_format
+
+location: "LOCATION"i hdfs_path
+
+hdfs_path: ESCAPED_STRING
+
+tbl_properties: "TBLPROPERTIES"i "(" "'" name "'" "=" "'" literal "'" ("," "'" name "'" "=" "'" literal "'")* ")"
+
+options: "OPTIONS"i "(" class_name "=" "'" literal "'" ("," class_name "=" "'" literal "'")* ")"
+
+?data_type: primitive_type
+    | array_type
+    | map_type
+    | struct_type
+    | union_type
+
+primitive_type: primitive_type_tinyint
+    | primitive_type_smallint
+    | primitive_type_int
+    | primitive_type_bigint
+    | primitive_type_boolean
+    | primitive_type_float
+    | primitive_type_double
+    | primitive_type_double_precision
+    | primitive_type_string
+    | primitive_type_binary
+    | primitive_type_timestamp
+    | primitive_type_decimal
+    | primitive_type_date
+    | primitive_type_decimal_precision
+    | primitive_type_varchar
+    | primitive_type_char
+
+primitive_type_tinyint: "TINYINT"i
+primitive_type_smallint: "SMALLINT"i
+primitive_type_int: "INT"i
+primitive_type_bigint: "BIGINT"i
+primitive_type_boolean: "BOOLEAN"i
+primitive_type_float: "FLOAT"i
+primitive_type_double: "DOUBLE"i
+primitive_type_double_precision: "DOUBLE"i "PRECISION"i
+primitive_type_string: "STRING"i
+primitive_type_binary: "BINARY"i
+primitive_type_timestamp: "TIMESTAMP"i
+primitive_type_decimal: "DECIMAL"i
+primitive_type_decimal_precision: "DECIMAL"i "(" precision "," scale ")"
+primitive_type_date: "DATE"i
+primitive_type_varchar: "VARCHAR"i
+primitive_type_char: "CHAR"i
+
+precision: numeric_literal
+scale: numeric_literal
+
+array_type: "ARRAY"i "<" data_type ">"
+
+map_type: "MAP"i "<" primitive_type "," data_type ">"
+
+struct_type: "STRUCT"i "<" col_name ":" data_type ["COMMENT"i col_comment] ("," col_name ":" data_type ["COMMENT"i col_comment])* ">"
+
+union_type: "UNIONTYPE"i "<" data_type ("," data_type)* ">"
+
+row_format: "DELIMITED"i ["FIELDS"i "TERMINATED"i "BY"i char ["ESCAPED"i "BY"i char]] ["COLLECTION"i "ITEMS"i "TERMINATED"i "BY"i char] ["MAP"i "KEYS"i "TERMINATED"i "BY"i char] ["LINES"i "TERMINATED"i "BY"i char] ["NULL"i "DEFINED"i "AS"i char]
+    | "SERDE"i "'" class_name "'" ["WITH"i "SERDEPROPERTIES"i "(" "'" class_name "'" "=" "'" literal "'" ("," "'" class_name "'" "=" "'" literal "'")* ")"]
+
+char: ESCAPED_STRING
+col_comment: ESCAPED_STRING
+table_comment: ESCAPED_STRING
+
+file_format: file_format_sequencefile
+    | file_format_textfile
+    | file_format_rcfile
+    | file_format_orc
+    | file_format_parquet
+    | file_format_avro
+    | file_format_jsonfile
+    | file_format_custom
+
+file_format_sequencefile: "SEQUENCEFILE"i
+file_format_textfile: "TEXTFILE"i | "TEXT"i
+file_format_rcfile: "RCFILE"i
+file_format_orc: "ORC"i
+file_format_parquet: "PARQUET"i
+file_format_avro: "AVRO"i
+file_format_jsonfile: "JSONFILE"i
+file_format_custom: "INPUTFORMAT"i "'" class_name "'" "OUTPUTFORMAT"i "'" class_name "'"
+
+class_name: name ("." name)*
+
+column_constraint_specification: "PRIMARY"i "KEY"i
+    | "UNIQUE"i
+    | "NOT"i "NULL"i
+    | "DEFAULT"i default_value
+    | "CHECK"i check_expression ["ENABLE"i "DISABLE"i] "NOVALIDATE"i ["RELY"i "NORELY"i]
+
+default_value: literal
+    | "CURRENT_USER()"i
+    | "CURRENT_DATE()"i
+    | "CURRENT_TIMESTAMP"i
+    | "NULL"i
+
+col_value: literal
+
+literal: ESCAPED_STRING | numeric_literal
+
+numeric_literal: NUMBER ("Y"i | "S"i | "L"i) | NUMBER
+
+constraint_specification: "," "PRIMARY"i "KEY"i "(" col_name [ ("," col_name)* ] ")" ["DISABLE"i "NOVALIDATE"i ["RELY"i "NORELY"i]]
+    | "," "CONSTRAINT"i constraint_name "FOREIGN"i "KEY"i "(" col_name ("," col_name)* ")" "REFERENCES"i table_name "(" col_name ("," col_name)* ")" ["DISABLE"i "NOVALIDATE"i]
+    | "," "CONSTRAINT"i constraint_name "UNIQUE"i "(" col_name [ ("," col_name)* ] ")" ["DISABLE"i "NOVALIDATE"i ["RELY"i "NORELY"i]]
+    | "," "CONSTRAINT"i constraint_name "CHECK"i check_expression ["ENABLE"i "DISABLE"i "NOVALIDATE"i ["RELY" "NORELY"i]]
+
+check_expression: name
+
+key_value_properties: ESCAPED_STRING "=" ESCAPED_STRING [ ("," ESCAPED_STRING "=" ESCAPED_STRING)* ]
+
+constraint_name: name
+
+col_name: name
+
+table_name: name
+
+db_name: name
+
+?name: CNAME | ESCAPED_STRING
+
+FAKER_PROVIDER.-1: /[^:\n]+/
+
+SQL_COMMENT: "--" /[^\n]*/ "\n"
+
+BACKTICK: "`"
+
+%ignore SQL_COMMENT
+%ignore BACKTICK
+
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.NUMBER
+%import common.WS
+%ignore WS
